@@ -221,6 +221,32 @@ def execute_sql_query(request):
             'error': str(e)
         }, status=400)
 
+def detect_delimiter(file_sample):
+    """Detect the delimiter used in a CSV file."""
+    # Common delimiters to check
+    delimiters = [',', ';', '\t', '|']
+    
+    # Count occurrences of each delimiter in the first line
+    counts = {delimiter: file_sample.split('\n')[0].count(delimiter) for delimiter in delimiters}
+    
+    # Return the delimiter with the highest count
+    max_delimiter = max(counts.items(), key=lambda x: x[1])
+    
+    # If no delimiter found with count > 0, default to comma
+    return max_delimiter[0] if max_delimiter[1] > 0 else ','
+
+def try_different_encodings(file_content):
+    """Try different encodings to decode the file content."""
+    encodings = ['utf-8', 'latin1', 'iso-8859-1', 'cp1252']
+    
+    for encoding in encodings:
+        try:
+            return file_content.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    
+    raise UnicodeDecodeError("Failed to decode file with any of the attempted encodings")
+
 def upload_csv(request):
     print("\n=== Starting upload_csv view ===")
     print(f"Request method: {request.method}")
@@ -236,10 +262,8 @@ def upload_csv(request):
         context['filename'] = request.session['csv_filename']
         context['data'] = json.loads(request.session['data_json'])
         if 'data_analysis' in request.session:
-            # If we have cached analysis, use it directly
             context['data_analysis'] = request.session['data_analysis']
         else:
-            # Otherwise show loading state
             context['show_analysis_loading'] = True
         print(f"Loaded from session - filename: {context['filename']}")
     else:
@@ -259,10 +283,25 @@ def upload_csv(request):
         
         try:
             print("Reading file contents...")
-            file_data = csv_file.read().decode('utf-8')
+            file_content = csv_file.read()
+            
+            # Try different encodings
+            try:
+                file_data = try_different_encodings(file_content)
+            except UnicodeDecodeError:
+                raise Exception("Unable to decode the file. Please ensure it's properly encoded (UTF-8 or similar).")
+            
+            # Detect delimiter from file sample
+            delimiter = detect_delimiter(file_data)
+            print(f"Detected delimiter: {delimiter}")
             
             print("Parsing CSV with pandas...")
-            csv_data = pd.read_csv(io.StringIO(file_data), keep_default_na=False)
+            csv_data = pd.read_csv(
+                io.StringIO(file_data),
+                delimiter=delimiter,
+                keep_default_na=False,
+                on_bad_lines='warn'  # More permissive handling of malformed lines
+            )
             print(f"CSV loaded successfully. Shape: {csv_data.shape}")
             
             print("Processing list columns...")
