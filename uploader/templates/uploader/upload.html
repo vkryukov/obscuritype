@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>CSV Uploader</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            background-color: #f8f9fa;
+        }
+
+        .upload-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .upload-button {
+            background-color: #007bff;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.2s;
+        }
+
+        .upload-button:hover {
+            background-color: #0056b3;
+        }
+
+        .error-message {
+            color: #dc3545;
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f8d7da;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .columns-list {
+            margin-top: 2rem;
+            text-align: left;
+        }
+
+        .columns-list h3 {
+            color: #212529;
+        }
+
+        .columns-list ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .columns-list li {
+            padding: 0.5rem;
+            background-color: #e9ecef;
+            margin-bottom: 0.5rem;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="upload-container">
+        <h2>CSV File Upload</h2>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="file" name="csv_file" id="csv_file" accept=".csv" style="display: none;">
+            <button type="button" class="upload-button" onclick="document.getElementById('csv_file').click()">
+                Choose CSV File
+            </button>
+            <button type="submit" class="upload-button" style="display: none;" id="submit-button">
+                Upload File
+            </button>
+        </form>
+
+        {% if error_message %}
+        <div class="error-message" style="display: block;">
+            {{ error_message }}
+        </div>
+        {% endif %}
+
+        {% if columns %}
+        <div class="columns-list">
+            <h3>CSV Columns</h3>
+            <ul>
+                {% for column in columns %}
+                <li>{{ column }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        document.getElementById('csv_file').addEventListener('change', function () {
+            if (this.files.length > 0) {
+                document.getElementById('submit-button').style.display = 'inline-block';
+            }
+        });
+    </script>
+</body>
+
+</html>
