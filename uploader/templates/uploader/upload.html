@@ -548,6 +548,27 @@
         .fix-query-button:hover {
             background-color: #339af0;
         }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .loading-text {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #495057;
+            font-size: 0.8rem;
+        }
     </style>
 </head>
 
@@ -752,7 +773,26 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
             }
         });
 
+        function showLoadingOverlay(container, text) {
+            const overlay = document.createElement('div');
+            overlay.className = 'loading-overlay';
+            overlay.innerHTML = `
+                <div class="loading-text">
+                    <div class="loading-spinner"></div>
+                    <span>${text}</span>
+                </div>
+            `;
+            container.style.position = 'relative';
+            container.appendChild(overlay);
+            return overlay;
+        }
+
         function generateAndExecuteQuery(query) {
+            const searchContainer = document.querySelector('.search-container');
+            const loadingOverlay = showLoadingOverlay(searchContainer, 'Generating SQL query...');
+
+            console.log('Sending natural language query to LLM:', query);
+
             fetch('/generate-sql/', {
                 method: 'POST',
                 headers: {
@@ -763,6 +803,7 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
             })
                 .then(response => response.json())
                 .then(data => {
+                    console.log('LLM response:', data);
                     if (data.error) {
                         throw new Error(data.error);
                     }
@@ -784,11 +825,22 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
                     const resultsContainer = document.querySelector('.sql-results-container');
                     resultsContainer.innerHTML = `<div class="sql-error">${error.message}</div>`;
                     resultsContainer.classList.add('active');
+                })
+                .finally(() => {
+                    loadingOverlay.remove();
                 });
         }
 
         function fixAndExecuteQuery(errorMessage) {
             const sqlQuery = document.querySelector('.sql-query-input').value;
+            const resultsContainer = document.querySelector('.sql-results-container');
+            const loadingOverlay = showLoadingOverlay(resultsContainer, 'Fixing SQL query...');
+
+            console.log('Sending fix request to LLM:', {
+                original_query: lastNaturalQuery,
+                sql_query: sqlQuery,
+                error_message: errorMessage
+            });
 
             fetch('/fix-sql/', {
                 method: 'POST',
@@ -800,10 +852,11 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
                     'original_query': lastNaturalQuery,
                     'sql_query': sqlQuery,
                     'error_message': errorMessage
-                })
+                }).toString()
             })
                 .then(response => response.json())
                 .then(data => {
+                    console.log('LLM fix response:', data);
                     if (data.error) {
                         throw new Error(data.error);
                     }
@@ -816,9 +869,11 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
                     executeSqlQuery();
                 })
                 .catch(error => {
-                    const resultsContainer = document.querySelector('.sql-results-container');
                     resultsContainer.innerHTML = `<div class="sql-error">${error.message}</div>`;
                     resultsContainer.classList.add('active');
+                })
+                .finally(() => {
+                    loadingOverlay.remove();
                 });
         }
 
@@ -867,12 +922,13 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
                     if (data.error) {
                         const errorDiv = document.createElement('div');
                         errorDiv.className = 'sql-error';
+                        const safeError = data.error.replace(/'/g, "\\'").replace(/"/g, '\\"');
                         errorDiv.innerHTML = `
-                        <span>${data.error}</span>
-                        <button class="fix-query-button" onclick="fixAndExecuteQuery('${data.error.replace(/'/g, "\\'")}')">
-                            Ask LLM to fix
-                        </button>
-                    `;
+                            <span>${data.error}</span>
+                            <button class="fix-query-button" onclick="fixAndExecuteQuery(\`${safeError}\`)">
+                                Ask LLM to fix
+                            </button>
+                        `;
                         tableContainer.appendChild(errorDiv);
                     } else {
                         // Create table for results
