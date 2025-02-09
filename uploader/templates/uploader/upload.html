@@ -361,7 +361,42 @@
             font-size: 0.8rem;
             line-height: 1.5;
             color: #495057;
-            white-space: pre-line;
+            white-space: normal;
+        }
+
+        .analysis-content p {
+            margin: 0 0 0.5rem 0;
+        }
+
+        .analysis-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        .analysis-loading {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        .loading-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
     </style>
 </head>
@@ -405,11 +440,18 @@
         </div>
         {% endif %}
 
-        {% if data_analysis %}
+        {% if filename %}
         <div class="data-analysis">
             <h3>Data Analysis</h3>
-            <div class="analysis-content">
+            <div class="analysis-content" id="analysis-content">
+                {% if data_analysis %}
                 {{ data_analysis|linebreaks }}
+                {% elif show_analysis_loading %}
+                <div class="analysis-loading">
+                    Analyzing data...
+                    <div class="loading-spinner"></div>
+                </div>
+                {% endif %}
             </div>
         </div>
         {% endif %}
@@ -528,6 +570,32 @@
                 console.log('Search query:', this.value);
             }
         });
+
+        // Function to load GPT analysis
+        function loadGPTAnalysis() {
+            const analysisContent = document.getElementById('analysis-content');
+            if (!analysisContent) return;
+
+            fetch('/get-gpt-analysis/')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        analysisContent.innerHTML = `<div class="error-message">${data.error}</div>`;
+                    } else {
+                        analysisContent.innerHTML = data.analysis.split('\n').map(p =>
+                            `<p>${p}</p>`
+                        ).join('');
+                    }
+                })
+                .catch(error => {
+                    analysisContent.innerHTML = `<div class="error-message">Error loading analysis: ${error}</div>`;
+                });
+        }
+
+        // Load analysis if loading state is shown
+        if (document.querySelector('.analysis-loading')) {
+            loadGPTAnalysis();
+        }
     </script>
 </body>
 

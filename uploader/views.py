@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect
+from django.http import JsonResponse
 import pandas as pd
 import numpy as np
 import io
@@ -162,13 +163,35 @@ Be concise but insightful. Limit response to 2-3 paragraphs."""
     except Exception as e:
         return f"Error analyzing data: {str(e)}"
 
+def get_gpt_analysis(request):
+    """AJAX endpoint to get GPT analysis of the data."""
+    if 'data_json' not in request.session:
+        return JsonResponse({'error': 'No data available'}, status=400)
+    
+    try:
+        # First check if we already have the analysis
+        if 'data_analysis' in request.session:
+            return JsonResponse({'analysis': request.session['data_analysis']})
+        
+        # If not, generate new analysis
+        data = json.loads(request.session['data_json'])
+        data_sample = data[:10]  # Get first 10 rows
+        analysis = analyze_data_with_gpt(data_sample)
+        
+        # Store the analysis in session
+        request.session['data_analysis'] = analysis
+        
+        return JsonResponse({'analysis': analysis})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
 def upload_csv(request):
     print("\n=== Starting upload_csv view ===")
     print(f"Request method: {request.method}")
     context = {}
     
     # Check if we have all required data in session first
-    required_keys = ['grouped_columns', 'csv_filename', 'data_json', 'data_analysis']
+    required_keys = ['grouped_columns', 'csv_filename', 'data_json']
     print(f"Session keys present: {list(request.session.keys())}")
     
     if all(key in request.session for key in required_keys):
@@ -176,7 +199,12 @@ def upload_csv(request):
         context['grouped_columns'] = request.session['grouped_columns']
         context['filename'] = request.session['csv_filename']
         context['data'] = json.loads(request.session['data_json'])
-        context['data_analysis'] = request.session['data_analysis']
+        if 'data_analysis' in request.session:
+            # If we have cached analysis, use it directly
+            context['data_analysis'] = request.session['data_analysis']
+        else:
+            # Otherwise show loading state
+            context['show_analysis_loading'] = True
         print(f"Loaded from session - filename: {context['filename']}")
     else:
         print("Missing some session data")
@@ -224,24 +252,20 @@ def upload_csv(request):
             data_json = json_data.head(1000).to_json(orient='records')
             print("JSON data prepared successfully")
             
-            # Get GPT analysis of the first 10 rows
-            print("Getting GPT analysis...")
-            data_sample = json.loads(json_data.head(10).to_json(orient='records'))
-            data_analysis = analyze_data_with_gpt(data_sample)
-            print("GPT analysis completed")
-            
             print("Storing data in session...")
             request.session['grouped_columns'] = grouped_columns
             request.session['csv_filename'] = csv_file.name
             request.session['data_json'] = data_json
-            request.session['data_analysis'] = data_analysis
+            # Clear any existing analysis when uploading new file
+            if 'data_analysis' in request.session:
+                del request.session['data_analysis']
             print("Session data stored successfully")
             
             print("Updating context...")
             context['grouped_columns'] = grouped_columns
             context['filename'] = csv_file.name
             context['data'] = json.loads(data_json)
-            context['data_analysis'] = data_analysis
+            context['show_analysis_loading'] = True
             print("Context updated successfully")
             
         except Exception as e:
