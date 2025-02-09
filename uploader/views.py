@@ -4,6 +4,8 @@ import numpy as np
 import io
 import json
 import ast
+import os
+from openai import OpenAI
 
 # Create your views here.
 
@@ -127,13 +129,46 @@ def group_columns_by_type(columns_dict):
     # Remove empty groups
     return {k: v for k, v in groups.items() if v}
 
+def analyze_data_with_gpt(data_sample):
+    """Analyze a sample of the data using GPT-4 to get insights."""
+    try:
+        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        
+        # Convert the data sample to a string format
+        data_str = json.dumps(data_sample, indent=2)
+        
+        prompt = f"""Analyze this dataset (showing first few rows) and provide a concise 2-3 paragraph summary.
+Focus on:
+1. What kind of data this appears to be
+2. Key columns and their meaning
+3. Any interesting patterns or characteristics
+
+Here's the data:
+{data_str}
+
+Be concise but insightful. Limit response to 2-3 paragraphs."""
+
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a data analyst providing concise insights about datasets."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=500
+        )
+        
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Error analyzing data: {str(e)}"
+
 def upload_csv(request):
     print("\n=== Starting upload_csv view ===")
     print(f"Request method: {request.method}")
     context = {}
     
     # Check if we have all required data in session first
-    required_keys = ['grouped_columns', 'csv_filename', 'data_json']
+    required_keys = ['grouped_columns', 'csv_filename', 'data_json', 'data_analysis']
     print(f"Session keys present: {list(request.session.keys())}")
     
     if all(key in request.session for key in required_keys):
@@ -141,6 +176,7 @@ def upload_csv(request):
         context['grouped_columns'] = request.session['grouped_columns']
         context['filename'] = request.session['csv_filename']
         context['data'] = json.loads(request.session['data_json'])
+        context['data_analysis'] = request.session['data_analysis']
         print(f"Loaded from session - filename: {context['filename']}")
     else:
         print("Missing some session data")
@@ -188,16 +224,24 @@ def upload_csv(request):
             data_json = json_data.head(1000).to_json(orient='records')
             print("JSON data prepared successfully")
             
+            # Get GPT analysis of the first 10 rows
+            print("Getting GPT analysis...")
+            data_sample = json.loads(json_data.head(10).to_json(orient='records'))
+            data_analysis = analyze_data_with_gpt(data_sample)
+            print("GPT analysis completed")
+            
             print("Storing data in session...")
             request.session['grouped_columns'] = grouped_columns
             request.session['csv_filename'] = csv_file.name
             request.session['data_json'] = data_json
+            request.session['data_analysis'] = data_analysis
             print("Session data stored successfully")
             
             print("Updating context...")
             context['grouped_columns'] = grouped_columns
             context['filename'] = csv_file.name
             context['data'] = json.loads(data_json)
+            context['data_analysis'] = data_analysis
             print("Context updated successfully")
             
         except Exception as e:

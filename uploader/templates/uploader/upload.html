@@ -342,6 +342,27 @@
             margin-bottom: 1rem;
             color: #dee2e6;
         }
+
+        .data-analysis {
+            padding: 1rem;
+            border-bottom: 1px solid #e9ecef;
+            background-color: #f8f9fa;
+        }
+
+        .data-analysis h3 {
+            margin: 0 0 0.75rem 0;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #495057;
+        }
+
+        .analysis-content {
+            font-size: 0.8rem;
+            line-height: 1.5;
+            color: #495057;
+            white-space: pre-line;
+        }
     </style>
 </head>
 
@@ -381,6 +402,15 @@
                 onclick="document.getElementById('csv_file').click()">
                 Choose CSV File
             </button>
+        </div>
+        {% endif %}
+
+        {% if data_analysis %}
+        <div class="data-analysis">
+            <h3>Data Analysis</h3>
+            <div class="analysis-content">
+                {{ data_analysis|linebreaks }}
+            </div>
         </div>
         {% endif %}
 
