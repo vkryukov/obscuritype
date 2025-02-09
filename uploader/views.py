@@ -38,8 +38,8 @@ def is_boolean_series(series):
     except:
         return False
 
-def detect_column_types(df, sample_rows=50):
-    """Enhanced column type detection."""
+def detect_column_types(df, sample_rows=1000):
+    """Enhanced column type detection with larger sample size and improved numerical detection."""
     df_sample = df.head(sample_rows)
     column_types = {}
     
@@ -60,18 +60,25 @@ def detect_column_types(df, sample_rows=50):
         unique_count = series.nunique()
         total_count = len(series.dropna())
         
-        # Check if boolean
-        if is_boolean_series(series):
-            column_types[column] = 'boolean'
-            continue
-            
         # Check if numeric (including string-stored numbers)
         if is_numeric_column(series):
-            # If all values are integers
-            if all(float(x).is_integer() for x in series.dropna()):
-                column_types[column] = 'integer'
-            else:
-                column_types[column] = 'float'
+            # Get all unique values as floats for analysis
+            unique_vals = pd.to_numeric(series.dropna().unique())
+            
+            # Check if all values are 0, 1, or boolean-like
+            is_potential_boolean = all(val in [0, 1, 0.0, 1.0] for val in unique_vals)
+            
+            if not is_potential_boolean:
+                # If we have non-boolean values, determine if integer or float
+                if all(float(x).is_integer() for x in series.dropna()):
+                    column_types[column] = 'integer'
+                else:
+                    column_types[column] = 'float'
+                continue
+        
+        # Check if boolean (only if we haven't determined it's a non-boolean numeric)
+        if is_boolean_series(series):
+            column_types[column] = 'boolean'
             continue
             
         # Check if datetime
