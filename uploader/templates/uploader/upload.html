@@ -2,28 +2,60 @@
 <html>
 
 <head>
-    <title>CSV Uploader{% if filename %} - {{ filename }}{% endif %}</title>
+    <title>ObscuriType{% if filename %} - {{ filename }}{% endif %}</title>
     <style>
+        :root {
+            --primary-color: #FF5722;
+            /* Similar orange to Claritype */
+            --bg-dark: #1a1a1a;
+            --text-light: #ffffff;
+            --sidebar-dark: #242424;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f8f9fa;
+            background-color: var(--bg-dark);
             min-height: 100vh;
             display: flex;
+            color: var(--text-light);
+        }
+
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: var(--sidebar-dark);
+            display: flex;
+            align-items: center;
+            padding: 0 2rem;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            text-decoration: none;
         }
 
         .sidebar {
             width: 280px;
-            background-color: white;
-            box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+            background-color: var(--sidebar-dark);
+            box-shadow: 2px 0 4px rgba(0, 0, 0, 0.2);
             overflow-y: auto;
             height: 100vh;
             position: fixed;
+            margin-top: 60px;
         }
 
         .main-content {
             margin-left: 280px;
+            margin-top: 60px;
             padding: 1.5rem;
             flex: 1;
             max-width: calc(100vw - 280px);
@@ -35,11 +67,11 @@
 
         .file-header {
             padding: 1rem;
-            border-bottom: 1px solid #e9ecef;
+            border-bottom: 1px solid #333;
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            background-color: #f8f9fa;
+            background-color: var(--sidebar-dark);
         }
 
         .file-icon {
@@ -48,10 +80,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background-color: #e9ecef;
-            border-radius: 4px;
-            font-size: 0.7rem;
-            color: #495057;
+            color: var(--primary-color);
         }
 
         .file-name {
@@ -114,6 +143,8 @@
 
         .column-group {
             padding: 0.75rem 1rem;
+            margin: 0.5rem;
+            border-radius: 6px;
         }
 
         .column-group:not(:last-child) {
@@ -125,7 +156,7 @@
             font-size: 0.7rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: rgba(0, 0, 0, 0.6);
+            color: var(--text-light);
         }
 
         .column-label {
@@ -133,13 +164,13 @@
             padding: 0.2rem 0.5rem;
             margin: 0.15rem;
             border-radius: 12px;
-            color: white;
+            color: var(--text-light);
             font-size: 0.7rem;
         }
 
         /* Color schemes for different types */
         .group-categorical {
-            background-color: #f3f0ff;
+            background-color: rgba(121, 80, 242, 0.1);
         }
 
         .group-categorical .column-label {
@@ -147,7 +178,7 @@
         }
 
         .group-numerical {
-            background-color: #e7f5ff;
+            background-color: rgba(28, 126, 214, 0.1);
         }
 
         .group-numerical .column-label {
@@ -155,7 +186,7 @@
         }
 
         .group-boolean {
-            background-color: #fff9db;
+            background-color: rgba(250, 176, 5, 0.1);
         }
 
         .group-boolean .column-label {
@@ -163,7 +194,7 @@
         }
 
         .group-datetime {
-            background-color: #f8f0fc;
+            background-color: rgba(174, 62, 201, 0.1);
         }
 
         .group-datetime .column-label {
@@ -171,7 +202,7 @@
         }
 
         .group-text {
-            background-color: #ebfbee;
+            background-color: rgba(55, 178, 77, 0.1);
         }
 
         .group-text .column-label {
@@ -179,7 +210,7 @@
         }
 
         .group-string {
-            background-color: #fff4e6;
+            background-color: rgba(247, 103, 7, 0.1);
         }
 
         .group-string .column-label {
@@ -199,30 +230,31 @@
             width: 100%;
             padding: 0.75rem 1rem;
             font-size: 0.9rem;
-            border: 1px solid #e9ecef;
+            border: 1px solid #333;
             border-radius: 6px;
-            background-color: white;
+            background-color: var(--sidebar-dark);
+            color: var(--text-light);
             transition: all 0.2s;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
             box-sizing: border-box;
         }
 
         .search-input:focus {
             outline: none;
-            border-color: #4dabf7;
-            box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(255, 87, 34, 0.1);
         }
 
         .search-input::placeholder {
-            color: #adb5bd;
+            color: #666;
             font-style: italic;
         }
 
-        /* Update table styles for more compact display */
+        /* Update table styles for dark theme */
         .table-container {
-            background: white;
+            background: var(--sidebar-dark);
             border-radius: 6px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
             overflow: auto;
             max-height: calc(100vh - 160px);
             font-size: 0.75rem;
@@ -230,64 +262,40 @@
             flex: 1;
             padding-right: 1rem;
             box-sizing: border-box;
+            color: var(--text-light);
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
             white-space: nowrap;
-        }
-
-        th,
-        td {
-            min-width: 120px;
-            padding: 0.4rem 0.5rem;
-            text-align: left;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            background: inherit;
-        }
-
-        /* Remove sticky first column */
-        th:first-child,
-        td:first-child {
-            min-width: 160px;
-            /* Make first column slightly wider for better readability */
-        }
-
-        th.narrow,
-        td.narrow {
-            min-width: 80px;
-        }
-
-        th.wide,
-        td.wide {
-            min-width: 160px;
+            color: var(--text-light);
         }
 
         th {
-            background: #f8f9fa;
+            background: var(--bg-dark);
             text-align: left;
             font-weight: 500;
-            color: #495057;
-            border-bottom: 2px solid #dee2e6;
+            color: var(--text-light);
+            border-bottom: 2px solid #333;
             position: sticky;
             top: 0;
             z-index: 1;
             font-size: 0.7rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            padding: 0.75rem 1rem;
         }
 
         td {
-            border-bottom: 1px solid #e9ecef;
-            color: #495057;
+            border-bottom: 1px solid #333;
+            color: var(--text-light);
             font-size: 0.75rem;
+            padding: 0.75rem 1rem;
         }
 
         tr:hover td {
-            background-color: #f8f9fa;
+            background-color: rgba(255, 255, 255, 0.05);
         }
 
         /* Main content padding adjustment */
@@ -295,29 +303,29 @@
             padding: 1.5rem;
         }
 
-        /* Make scrollbars more subtle */
+        /* Make scrollbars more subtle and dark themed */
         .table-container::-webkit-scrollbar {
             width: 8px;
             height: 8px;
         }
 
         .table-container::-webkit-scrollbar-track {
-            background: #f8f9fa;
+            background: var(--bg-dark);
             border-radius: 4px;
         }
 
         .table-container::-webkit-scrollbar-thumb {
-            background: #dee2e6;
+            background: #444;
             border-radius: 4px;
-            border: 2px solid #f8f9fa;
+            border: 2px solid var(--bg-dark);
         }
 
         .table-container::-webkit-scrollbar-thumb:hover {
-            background: #ced4da;
+            background: #555;
         }
 
         .table-container::-webkit-scrollbar-corner {
-            background: #f8f9fa;
+            background: var(--bg-dark);
         }
 
         /* Ensure the sidebar stays on top */
@@ -345,8 +353,9 @@
 
         .data-analysis {
             padding: 1rem;
-            border-bottom: 1px solid #e9ecef;
-            background-color: #f8f9fa;
+            border-bottom: 1px solid #333;
+            background-color: var(--sidebar-dark);
+            color: var(--text-light);
         }
 
         .data-analysis h3 {
@@ -354,18 +363,19 @@
             font-size: 0.8rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: #495057;
+            color: var(--text-light);
         }
 
         .analysis-content {
             font-size: 0.8rem;
             line-height: 1.5;
-            color: #495057;
+            color: var(--text-light);
             white-space: normal;
         }
 
         .analysis-content p {
             margin: 0 0 0.5rem 0;
+            color: var(--text-light);
         }
 
         .analysis-content p:last-child {
@@ -661,6 +671,9 @@
 </head>
 
 <body>
+    <nav class="navbar">
+        <a href="/" class="logo">ObscuriType</a>
+    </nav>
     <div class="sidebar">
         {% if filename %}
         <div class="file-header">
@@ -703,7 +716,7 @@
         <div class="data-analysis">
             <div class="analysis-container">
                 <div class="analysis-header">
-                    <h3>Data Analysis</h3>
+                    <h3>Data Description</h3>
                 </div>
                 <div id="analysis-content" class="analysis-content"
                     data-should-load="{% if show_analysis_loading %}true{% else %}false{% endif %}">
