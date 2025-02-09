@@ -290,9 +290,20 @@ The raw data excerpt (first 20 lines) looks like:
 The user provided this feedback about the results:
 "{data.get('user_prompt')}"
 
+IMPORTANT SQL SYNTAX RULES:
+1. The table name is 'data' (no quotes needed)
+2. Column names containing spaces MUST be enclosed in double quotes, e.g., "Blood status", "Eye colour"
+3. String literals should use single quotes, e.g., 'Gryffindor'
+4. NULL values should be handled with IS NULL or IS NOT NULL
+
+Example of correct syntax:
+SELECT "House", "Blood status", COUNT("Id") as count
+FROM data
+WHERE "House" IS NOT NULL AND "Blood status" IS NOT NULL
+GROUP BY "House", "Blood status";
+
 Please generate a new SQL query that addresses the user's feedback.
-Return ONLY the SQL query, nothing else. The table name is 'data'.
-Make sure to handle NULL values appropriately and use proper SQLite syntax."""
+Return ONLY the SQL query, nothing else."""
 
         print("\n=== Sending to LLM ===")
         print(f"Prompt: {prompt}")
@@ -517,11 +528,22 @@ def generate_sql_query(request):
 Dataset description:
 {data_analysis}
 
+IMPORTANT SQL SYNTAX RULES:
+1. The table name is 'data' (no quotes needed)
+2. Column names containing spaces MUST be enclosed in double quotes, e.g., "Blood status", "Eye colour"
+3. String literals should use single quotes, e.g., 'Gryffindor'
+4. NULL values should be handled with IS NULL or IS NOT NULL
+
+Example of correct syntax:
+SELECT "House", "Blood status", COUNT("Id") as count
+FROM data
+WHERE "House" IS NOT NULL AND "Blood status" IS NOT NULL
+GROUP BY "House", "Blood status";
+
 Convert this natural language query into a SQL query:
 "{query}"
 
-Return ONLY the SQL query, nothing else. The table name is 'data'.
-Make sure to handle NULL values appropriately and use proper SQL syntax."""
+Return ONLY the SQL query, nothing else."""
 
         client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
         response = client.chat.completions.create(
@@ -564,8 +586,19 @@ The generated SQL query was:
 But it produced this error:
 {error_message}
 
-Please fix the SQL query to resolve this error. Return ONLY the fixed SQL query, nothing else.
-The table name should be 'data'."""
+IMPORTANT SQL SYNTAX RULES:
+1. The table name is 'data' (no quotes needed)
+2. Column names containing spaces MUST be enclosed in double quotes, e.g., "Blood status", "Eye colour"
+3. String literals should use single quotes, e.g., 'Gryffindor'
+4. NULL values should be handled with IS NULL or IS NOT NULL
+
+Example of correct syntax:
+SELECT "House", "Blood status", COUNT("Id") as count
+FROM data
+WHERE "House" IS NOT NULL AND "Blood status" IS NOT NULL
+GROUP BY "House", "Blood status";
+
+Please fix the SQL query to resolve this error. Return ONLY the fixed SQL query, nothing else."""
 
         client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
         response = client.chat.completions.create(
