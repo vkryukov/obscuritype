@@ -528,6 +528,25 @@
             border-radius: 4px;
             font-size: 0.8rem;
             margin: 0.5rem 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .fix-query-button {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.7rem;
+            background-color: #4dabf7;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .fix-query-button:hover {
+            background-color: #339af0;
         }
     </style>
 </head>
@@ -655,7 +674,7 @@
     <div class="main-content">
         {% if data %}
         <div class="search-container">
-            <input type="text" class="search-input" placeholder="Search in data..." id="searchInput">
+            <input type="text" class="search-input" placeholder="Ask questions about data..." id="searchInput">
         </div>
 
         <div class="sql-query-container">
@@ -720,32 +739,86 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
             }
         });
 
-        // Add event listener for search input
+        let lastNaturalQuery = ''; // Store the last natural language query
+
+        // Update search input handler
         document.querySelector('.search-input')?.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
-                // TODO: Handle search query
-                console.log('Search query:', this.value);
+                const query = this.value.trim();
+                if (query) {
+                    lastNaturalQuery = query;
+                    generateAndExecuteQuery(query);
+                }
             }
         });
 
-        // Function to load GPT analysis
-        function loadGPTAnalysis() {
-            const analysisContent = document.getElementById('analysis-content');
-            if (!analysisContent) return;
-
-            fetch('/get-gpt-analysis/')
+        function generateAndExecuteQuery(query) {
+            fetch('/generate-sql/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: 'query=' + encodeURIComponent(query)
+            })
                 .then(response => response.json())
                 .then(data => {
                     if (data.error) {
-                        analysisContent.innerHTML = `<div class="error-message">${data.error}</div>`;
-                    } else {
-                        analysisContent.innerHTML = data.analysis.split('\n').map(p =>
-                            `<p>${p}</p>`
-                        ).join('');
+                        throw new Error(data.error);
                     }
+
+                    // Show SQL query section if hidden
+                    const sqlContent = document.querySelector('.sql-query-content');
+                    if (!sqlContent.classList.contains('active')) {
+                        toggleSqlQuery();
+                    }
+
+                    // Set the SQL query in the textarea
+                    const queryInput = document.querySelector('.sql-query-input');
+                    queryInput.value = data.sql_query;
+
+                    // Execute the query
+                    executeSqlQuery();
                 })
                 .catch(error => {
-                    analysisContent.innerHTML = `<div class="error-message">Error loading analysis: ${error}</div>`;
+                    const resultsContainer = document.querySelector('.sql-results-container');
+                    resultsContainer.innerHTML = `<div class="sql-error">${error.message}</div>`;
+                    resultsContainer.classList.add('active');
+                });
+        }
+
+        function fixAndExecuteQuery(errorMessage) {
+            const sqlQuery = document.querySelector('.sql-query-input').value;
+
+            fetch('/fix-sql/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: new URLSearchParams({
+                    'original_query': lastNaturalQuery,
+                    'sql_query': sqlQuery,
+                    'error_message': errorMessage
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+
+                    // Set the fixed SQL query in the textarea
+                    const queryInput = document.querySelector('.sql-query-input');
+                    queryInput.value = data.sql_query;
+
+                    // Execute the fixed query
+                    executeSqlQuery();
+                })
+                .catch(error => {
+                    const resultsContainer = document.querySelector('.sql-results-container');
+                    resultsContainer.innerHTML = `<div class="sql-error">${error.message}</div>`;
+                    resultsContainer.classList.add('active');
                 });
         }
 
@@ -792,11 +865,19 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
                 .then(response => response.json())
                 .then(data => {
                     if (data.error) {
-                        tableContainer.innerHTML = `<div class="sql-error">${data.error}</div>`;
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'sql-error';
+                        errorDiv.innerHTML = `
+                        <span>${data.error}</span>
+                        <button class="fix-query-button" onclick="fixAndExecuteQuery('${data.error.replace(/'/g, "\\'")}')">
+                            Ask LLM to fix
+                        </button>
+                    `;
+                        tableContainer.appendChild(errorDiv);
                     } else {
                         // Create table for results
                         const table = document.createElement('table');
-                        table.style.width = 'auto'; // Allow table to size based on content
+                        table.style.width = 'auto';
 
                         // Add headers
                         const thead = document.createElement('thead');
@@ -828,7 +909,7 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
                     resultsContainer.classList.add('active');
                 })
                 .catch(error => {
-                    tableContainer.innerHTML = `<div class="sql-error">Error executing query: ${error}</div>`;
+                    tableContainer.innerHTML = `<div class="sql-error">${error.message}</div>`;
                 })
                 .finally(() => {
                     button.disabled = false;

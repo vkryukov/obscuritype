@@ -323,3 +323,102 @@ def clear_data(request):
             if key in request.session:
                 del request.session[key]
     return redirect('upload_csv')
+
+def generate_sql_query(request):
+    """Generate SQL query from natural language using GPT."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST method is allowed'}, status=405)
+    
+    if 'data_json' not in request.session:
+        return JsonResponse({'error': 'No data available'}, status=400)
+    
+    try:
+        query = request.POST.get('query')
+        if not query:
+            return JsonResponse({'error': 'No query provided'}, status=400)
+        
+        # Get column information and data analysis
+        grouped_columns = request.session.get('grouped_columns', {})
+        data_analysis = request.session.get('data_analysis', '')
+        
+        # Create a description of available columns
+        columns_desc = []
+        for type_name, columns in grouped_columns.items():
+            if columns:
+                columns_desc.append(f"{type_name.title()} columns: {', '.join(columns)}")
+        
+        prompt = f"""Given a dataset with the following structure:
+
+{chr(10).join(columns_desc)}
+
+Dataset description:
+{data_analysis}
+
+Convert this natural language query into a SQL query:
+"{query}"
+
+Return ONLY the SQL query, nothing else. The table name is 'data'.
+Make sure to handle NULL values appropriately and use proper SQL syntax."""
+
+        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a SQL expert that converts natural language queries into SQL. Return only the SQL query, nothing else."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
+        )
+        
+        sql_query = response.choices[0].message.content.strip()
+        
+        return JsonResponse({
+            'success': True,
+            'sql_query': sql_query
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+def fix_sql_query(request):
+    """Fix a SQL query that produced an error."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST method is allowed'}, status=405)
+    
+    try:
+        original_query = request.POST.get('original_query')
+        sql_query = request.POST.get('sql_query')
+        error_message = request.POST.get('error_message')
+        
+        if not all([original_query, sql_query, error_message]):
+            return JsonResponse({'error': 'Missing required parameters'}, status=400)
+        
+        prompt = f"""The following SQL query was generated for this natural language request:
+"{original_query}"
+
+The generated SQL query was:
+{sql_query}
+
+But it produced this error:
+{error_message}
+
+Please fix the SQL query to resolve this error. Return ONLY the fixed SQL query, nothing else.
+The table name should be 'data'."""
+
+        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a SQL expert that fixes SQL queries. Return only the fixed SQL query, nothing else."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
+        )
+        
+        fixed_query = response.choices[0].message.content.strip()
+        
+        return JsonResponse({
+            'success': True,
+            'sql_query': fixed_query
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
