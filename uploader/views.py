@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 import pandas as pd
 import io
 
@@ -21,9 +21,21 @@ def upload_csv(request):
             
             # Get column names
             columns = csv_data.columns.tolist()
-            context['columns'] = columns
+            
+            # Store in session
+            request.session['csv_columns'] = columns
+            request.session['csv_filename'] = csv_file.name
+            request.session['csv_data'] = file_data
+            
+            # Redirect to GET request
+            return redirect('/')
             
         except Exception as e:
             context['error_message'] = f'Error parsing CSV file: {str(e)}'
+    else:
+        # Check if we have data in session
+        if 'csv_columns' in request.session:
+            context['columns'] = request.session['csv_columns']
+            context['filename'] = request.session['csv_filename']
     
     return render(request, 'uploader/upload.html', context)

@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>CSV Uploader</title>
+    <title>CSV Uploader{% if filename %} - {{ filename }}{% endif %}</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -29,6 +29,7 @@
             cursor: pointer;
             font-size: 1rem;
             transition: background-color 0.2s;
+            margin: 0.5rem;
         }
 
         .upload-button:hover {
@@ -64,17 +65,31 @@
             margin-bottom: 0.5rem;
             border-radius: 4px;
         }
+
+        .current-file {
+            margin: 1rem 0;
+            padding: 1rem;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            color: #495057;
+        }
     </style>
 </head>
 
 <body>
     <div class="upload-container">
         <h2>CSV File Upload</h2>
+        {% if filename %}
+        <div class="current-file">
+            Current file: {{ filename }}
+        </div>
+        {% endif %}
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="file" name="csv_file" id="csv_file" accept=".csv" style="display: none;">
             <button type="button" class="upload-button" onclick="document.getElementById('csv_file').click()">
-                Choose CSV File
+                {% if filename %}Replace the file{% else %}Choose CSV File{% endif %}
             </button>
             <button type="submit" class="upload-button" style="display: none;" id="submit-button">
                 Upload File
