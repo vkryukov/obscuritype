@@ -447,16 +447,20 @@
             display: block;
         }
 
+        .analysis-toggle-container {
+            text-align: center;
+            margin-top: 0.5rem;
+        }
+
         .analysis-toggle {
             display: inline-block;
-            padding: 0.25rem 0.5rem;
+            padding: 0.25rem 0.75rem;
             font-size: 0.7rem;
             color: #495057;
             background-color: #e9ecef;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            margin-top: 0.5rem;
             user-select: none;
         }
 
@@ -468,6 +472,17 @@
             max-height: 150px;
             overflow: hidden;
             position: relative;
+        }
+
+        .analysis-content.collapsed::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: linear-gradient(transparent, #f8f9fa);
+            pointer-events: none;
         }
 
         .sql-query-input {
@@ -613,19 +628,21 @@
 
         {% if filename %}
         <div class="data-analysis">
-            <h3>Data Analysis</h3>
-            <div class="analysis-content collapsed" id="analysis-content">
-                {% if data_analysis %}
-                {{ data_analysis|linebreaks }}
-                {% elif show_analysis_loading %}
-                <div class="analysis-loading">
-                    Analyzing data...
-                    <div class="loading-spinner"></div>
+            <div class="analysis-container">
+                <div class="analysis-header">
+                    <h3>Data Analysis</h3>
                 </div>
-                {% endif %}
-            </div>
-            <div class="analysis-toggle" onclick="toggleAnalysis()">
-                Expand ▼
+                <div id="analysis-content" class="analysis-content"
+                    data-should-load="{% if show_analysis_loading %}true{% else %}false{% endif %}">
+                    {% if data_analysis %}
+                    {{ data_analysis|linebreaks }}
+                    {% else %}
+                    <div class="loading-spinner"></div>
+                    {% endif %}
+                </div>
+                <div class="analysis-toggle-container">
+                    <button class="analysis-toggle" onclick="toggleAnalysis()">Collapse ▲</button>
+                </div>
             </div>
         </div>
         {% endif %}
@@ -754,8 +771,16 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
     </div>
 
     <script>
+        function resetAnalysisContent() {
+            const analysisContainer = document.getElementById('analysis-content');
+            if (analysisContainer) {
+                analysisContainer.innerHTML = '<div class="loading-spinner"></div>';
+            }
+        }
+
         document.getElementById('csv_file').addEventListener('change', function () {
             if (this.files.length > 0) {
+                resetAnalysisContent();  // Reset content before submitting
                 document.getElementById('submit-button').click();
             }
         });
@@ -895,6 +920,47 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
             }
         }
 
+        function loadGPTAnalysis() {
+            const analysisContainer = document.getElementById('analysis-content');
+            if (!analysisContainer) return;
+
+            const loadingSpinner = document.querySelector('.loading-spinner');
+            if (loadingSpinner) {
+                loadingSpinner.style.display = 'block';
+            }
+
+            fetch('/get-gpt-analysis/', {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        analysisContainer.innerHTML = `<div class="error-message">${data.error}</div>`;
+                    } else {
+                        analysisContainer.innerHTML = data.analysis;
+                    }
+                })
+                .catch(error => {
+                    analysisContainer.innerHTML = `<div class="error-message">Error loading analysis: ${error.message}</div>`;
+                })
+                .finally(() => {
+                    if (loadingSpinner) {
+                        loadingSpinner.style.display = 'none';
+                    }
+                });
+        }
+
+        // Initialize analysis loading if needed
+        document.addEventListener('DOMContentLoaded', function () {
+            const analysisContainer = document.getElementById('analysis-content');
+            if (analysisContainer && analysisContainer.dataset.shouldLoad === 'true') {
+                loadGPTAnalysis();
+            }
+        });
+
         function executeSqlQuery() {
             const queryInput = document.querySelector('.sql-query-input');
             const resultsContainer = document.querySelector('.sql-results-container');
@@ -970,11 +1036,6 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
                 .finally(() => {
                     button.disabled = false;
                 });
-        }
-
-        // Load analysis if loading state is shown and initialize collapsed state
-        if (document.querySelector('.analysis-loading')) {
-            loadGPTAnalysis();
         }
     </script>
 </body>
