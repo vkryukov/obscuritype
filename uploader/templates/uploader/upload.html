@@ -24,7 +24,7 @@
 
         .main-content {
             margin-left: 280px;
-            padding: 2rem;
+            padding: 1.5rem;
             flex: 1;
         }
 
@@ -164,6 +164,107 @@
         .group-string .column-label {
             background-color: #f76707;
         }
+
+        /* Update search container styles */
+        .search-container {
+            margin: 0 0 1.5rem 0;
+            width: 75%;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            background-color: white;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #4dabf7;
+            box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.1);
+        }
+
+        .search-input::placeholder {
+            color: #adb5bd;
+            font-style: italic;
+        }
+
+        /* Update table styles for more compact display */
+        .table-container {
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            overflow: auto;
+            max-height: calc(100vh - 160px);
+            font-size: 0.75rem;
+            margin-right: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            white-space: nowrap;
+        }
+
+        th {
+            background: #f8f9fa;
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            font-weight: 500;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 0.35rem 0.75rem;
+            border-bottom: 1px solid #e9ecef;
+            color: #495057;
+            font-size: 0.75rem;
+        }
+
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* Main content padding adjustment */
+        .main-content {
+            padding: 1.5rem;
+        }
+
+        /* Make scrollbars more subtle */
+        .table-container::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .table-container::-webkit-scrollbar-track {
+            background: #f8f9fa;
+        }
+
+        .table-container::-webkit-scrollbar-thumb {
+            background: #dee2e6;
+            border-radius: 3px;
+        }
+
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: #ced4da;
+        }
+
+        /* Ensure the sidebar stays on top */
+        .sidebar {
+            z-index: 10;
+        }
     </style>
 </head>
 
@@ -263,13 +364,45 @@
     </div>
 
     <div class="main-content">
-        <!-- Main content area for future use -->
+        {% if data %}
+        <div class="search-container">
+            <input type="text" class="search-input" placeholder="Ask questions about this data..." />
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        {% for key in data.0.keys %}
+                        <th>{{ key }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in data %}
+                    <tr>
+                        {% for value in row.values %}
+                        <td>{{ value }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
     </div>
 
     <script>
         document.getElementById('csv_file').addEventListener('change', function () {
             if (this.files.length > 0) {
                 document.getElementById('submit-button').click();
+            }
+        });
+
+        // Add event listener for search input
+        document.querySelector('.search-input')?.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                // TODO: Handle search query
+                console.log('Search query:', this.value);
             }
         });
     </script>
