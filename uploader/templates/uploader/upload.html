@@ -398,6 +398,137 @@
                 transform: rotate(360deg);
             }
         }
+
+        /* SQL Query Interface Styles */
+        .sql-query-container {
+            margin: 0 0 1.5rem 0;
+            width: 100%;
+            position: relative;
+            box-sizing: border-box;
+            padding-right: 1rem;
+        }
+
+        .sql-query-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .sql-query-header h3 {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #495057;
+        }
+
+        .sql-query-toggle {
+            margin-right: 0.5rem;
+            font-size: 0.8rem;
+            color: #868e96;
+            width: 12px;
+            text-align: center;
+        }
+
+        .section-header {
+            margin: 0 0 1rem 0;
+            font-size: 0.9rem;
+            color: #495057;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .sql-query-content {
+            display: none;
+        }
+
+        .sql-query-content.active {
+            display: block;
+        }
+
+        .analysis-toggle {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.7rem;
+            color: #495057;
+            background-color: #e9ecef;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            user-select: none;
+        }
+
+        .analysis-toggle:hover {
+            background-color: #dee2e6;
+        }
+
+        .analysis-content.collapsed {
+            max-height: 150px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .sql-query-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+            font-family: monospace;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            background-color: white;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            box-sizing: border-box;
+            margin-bottom: 0.5rem;
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .sql-query-input:focus {
+            outline: none;
+            border-color: #4dabf7;
+            box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.1);
+        }
+
+        .sql-query-button {
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+            background-color: #4dabf7;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sql-query-button:hover {
+            background-color: #339af0;
+        }
+
+        .sql-query-button:disabled {
+            background-color: #adb5bd;
+            cursor: not-allowed;
+        }
+
+        .sql-results-container {
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .sql-results-container.active {
+            display: block;
+        }
+
+        .sql-error {
+            color: #dc3545;
+            padding: 0.5rem;
+            background-color: #f8d7da;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin: 0.5rem 0;
+        }
     </style>
 </head>
 
@@ -443,7 +574,7 @@
         {% if filename %}
         <div class="data-analysis">
             <h3>Data Analysis</h3>
-            <div class="analysis-content" id="analysis-content">
+            <div class="analysis-content collapsed" id="analysis-content">
                 {% if data_analysis %}
                 {{ data_analysis|linebreaks }}
                 {% elif show_analysis_loading %}
@@ -452,6 +583,9 @@
                     <div class="loading-spinner"></div>
                 </div>
                 {% endif %}
+            </div>
+            <div class="analysis-toggle" onclick="toggleAnalysis()">
+                Expand ▼
             </div>
         </div>
         {% endif %}
@@ -521,10 +655,33 @@
     <div class="main-content">
         {% if data %}
         <div class="search-container">
-            <input type="text" class="search-input" placeholder="Ask questions about this data..." />
+            <input type="text" class="search-input" placeholder="Search in data..." id="searchInput">
         </div>
+
+        <div class="sql-query-container">
+            <div class="sql-query-header" onclick="toggleSqlQuery()">
+                <span class="sql-query-toggle">▶</span>
+                <h3>SQL Query</h3>
+            </div>
+            <div class="sql-query-content">
+                <textarea class="sql-query-input" placeholder="Enter your SQL query here...
+Example: SELECT * FROM data LIMIT 5"></textarea>
+                <button class="sql-query-button" onclick="executeSqlQuery()">Execute Query</button>
+                <div class="sql-results-container">
+                    <h3 class="section-header">Query Results</h3>
+                    <div class="table-container">
+                        <table id="sqlResultsTable">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h3 class="section-header">Raw Data</h3>
         <div class="table-container">
-            <table>
+            <table id="dataTable">
                 <thead>
                     <tr>
                         {% for key in data.0.keys %}
@@ -592,7 +749,93 @@
                 });
         }
 
-        // Load analysis if loading state is shown
+        function toggleSqlQuery() {
+            const content = document.querySelector('.sql-query-content');
+            const toggle = document.querySelector('.sql-query-toggle');
+            content.classList.toggle('active');
+            toggle.textContent = content.classList.contains('active') ? '▼' : '▶';
+        }
+
+        function toggleAnalysis() {
+            const content = document.getElementById('analysis-content');
+            const toggle = document.querySelector('.analysis-toggle');
+            content.classList.toggle('collapsed');
+            if (content.classList.contains('collapsed')) {
+                toggle.textContent = 'Expand ▼';
+            } else {
+                toggle.textContent = 'Collapse ▲';
+            }
+        }
+
+        function executeSqlQuery() {
+            const queryInput = document.querySelector('.sql-query-input');
+            const resultsContainer = document.querySelector('.sql-results-container');
+            const button = document.querySelector('.sql-query-button');
+
+            // Clear previous results
+            resultsContainer.innerHTML = '<h3 class="section-header">Query Results</h3>';
+            const tableContainer = document.createElement('div');
+            tableContainer.className = 'table-container';
+            resultsContainer.appendChild(tableContainer);
+
+            // Disable button during execution
+            button.disabled = true;
+
+            fetch('/execute-sql/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: 'query=' + encodeURIComponent(queryInput.value)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        tableContainer.innerHTML = `<div class="sql-error">${data.error}</div>`;
+                    } else {
+                        // Create table for results
+                        const table = document.createElement('table');
+                        table.style.width = 'auto'; // Allow table to size based on content
+
+                        // Add headers
+                        const thead = document.createElement('thead');
+                        const headerRow = document.createElement('tr');
+                        data.columns.forEach(column => {
+                            const th = document.createElement('th');
+                            th.textContent = column;
+                            headerRow.appendChild(th);
+                        });
+                        thead.appendChild(headerRow);
+                        table.appendChild(thead);
+
+                        // Add data rows
+                        const tbody = document.createElement('tbody');
+                        data.data.forEach(row => {
+                            const tr = document.createElement('tr');
+                            data.columns.forEach(column => {
+                                const td = document.createElement('td');
+                                td.textContent = row[column] !== null ? row[column] : '';
+                                tr.appendChild(td);
+                            });
+                            tbody.appendChild(tr);
+                        });
+                        table.appendChild(tbody);
+
+                        tableContainer.innerHTML = '';
+                        tableContainer.appendChild(table);
+                    }
+                    resultsContainer.classList.add('active');
+                })
+                .catch(error => {
+                    tableContainer.innerHTML = `<div class="sql-error">Error executing query: ${error}</div>`;
+                })
+                .finally(() => {
+                    button.disabled = false;
+                });
+        }
+
+        // Load analysis if loading state is shown and initialize collapsed state
         if (document.querySelector('.analysis-loading')) {
             loadGPTAnalysis();
         }

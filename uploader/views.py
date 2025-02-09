@@ -7,6 +7,7 @@ import json
 import ast
 import os
 from openai import OpenAI
+from pandasql import sqldf
 
 # Create your views here.
 
@@ -185,6 +186,41 @@ def get_gpt_analysis(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+def execute_sql_query(request):
+    """Execute SQL query on the uploaded data."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST method is allowed'}, status=405)
+    
+    if 'data_json' not in request.session:
+        return JsonResponse({'error': 'No data available. Please upload a CSV file first.'}, status=400)
+    
+    try:
+        query = request.POST.get('query')
+        if not query:
+            return JsonResponse({'error': 'No query provided'}, status=400)
+        
+        # Load data from session
+        data = pd.DataFrame(json.loads(request.session['data_json']))
+        
+        # Execute the query
+        result = sqldf(query, locals())
+        
+        # Convert result to JSON
+        result_json = json.loads(result.to_json(orient='records', date_format='iso'))
+        
+        # Get column names for the table headers
+        columns = list(result.columns)
+        
+        return JsonResponse({
+            'success': True,
+            'data': result_json,
+            'columns': columns
+        })
+    except Exception as e:
+        return JsonResponse({
+            'error': str(e)
+        }, status=400)
+
 def upload_csv(request):
     print("\n=== Starting upload_csv view ===")
     print(f"Request method: {request.method}")
@@ -249,7 +285,7 @@ def upload_csv(request):
                     print(f"Converting list column for JSON: {col}")
                     json_data[col] = json_data[col].apply(str)
             
-            data_json = json_data.head(1000).to_json(orient='records')
+            data_json = json_data.head(1000).to_json(orient='records', date_format='iso')
             print("JSON data prepared successfully")
             
             print("Storing data in session...")
@@ -264,7 +300,7 @@ def upload_csv(request):
             print("Updating context...")
             context['grouped_columns'] = grouped_columns
             context['filename'] = csv_file.name
-            context['data'] = json.loads(data_json)
+            context['data'] = json.loads(request.session['data_json'])
             context['show_analysis_loading'] = True
             print("Context updated successfully")
             
@@ -272,7 +308,7 @@ def upload_csv(request):
             print(f"Error processing file: {str(e)}")
             import traceback
             print("Traceback:", traceback.format_exc())
-            context['error_message'] = f'Error parsing CSV file: {str(e)}'
+            context['error_message'] = f'Error processing file: {str(e)}'
     
     print("\nFinal context keys:", list(context.keys()))
     print("=== Ending upload_csv view ===\n")
