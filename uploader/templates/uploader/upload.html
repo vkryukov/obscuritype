@@ -45,27 +45,6 @@
             display: none;
         }
 
-        .columns-list {
-            margin-top: 2rem;
-            text-align: left;
-        }
-
-        .columns-list h3 {
-            color: #212529;
-        }
-
-        .columns-list ul {
-            list-style-type: none;
-            padding: 0;
-        }
-
-        .columns-list li {
-            padding: 0.5rem;
-            background-color: #e9ecef;
-            margin-bottom: 0.5rem;
-            border-radius: 4px;
-        }
-
         .current-file {
             margin: 1rem 0;
             padding: 1rem;
@@ -73,6 +52,84 @@
             border-radius: 4px;
             font-size: 0.9rem;
             color: #495057;
+        }
+
+        .columns-container {
+            margin-top: 2rem;
+            text-align: left;
+            font-size: 0.85rem;
+        }
+
+        .column-group {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            border-radius: 6px;
+        }
+
+        .column-group h3 {
+            margin: 0 0 0.75rem 0;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: rgba(0, 0, 0, 0.7);
+        }
+
+        .column-label {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            margin: 0.25rem;
+            border-radius: 12px;
+            color: white;
+            font-size: 0.8rem;
+        }
+
+        /* Color schemes for different types */
+        .group-categorical {
+            background-color: #f3f0ff;
+        }
+
+        .group-categorical .column-label {
+            background-color: #7950f2;
+        }
+
+        .group-numerical {
+            background-color: #e7f5ff;
+        }
+
+        .group-numerical .column-label {
+            background-color: #1c7ed6;
+        }
+
+        .group-boolean {
+            background-color: #fff9db;
+        }
+
+        .group-boolean .column-label {
+            background-color: #fab005;
+        }
+
+        .group-datetime {
+            background-color: #f8f0fc;
+        }
+
+        .group-datetime .column-label {
+            background-color: #ae3ec9;
+        }
+
+        .group-text {
+            background-color: #ebfbee;
+        }
+
+        .group-text .column-label {
+            background-color: #37b24d;
+        }
+
+        .group-string {
+            background-color: #fff4e6;
+        }
+
+        .group-string .column-label {
+            background-color: #f76707;
         }
     </style>
 </head>
@@ -102,14 +159,64 @@
         </div>
         {% endif %}
 
-        {% if columns %}
-        <div class="columns-list">
-            <h3>CSV Columns</h3>
-            <ul>
-                {% for column in columns %}
-                <li>{{ column }}</li>
+        {% if grouped_columns %}
+        <div class="columns-container">
+            {% if grouped_columns.categorical %}
+            <div class="column-group group-categorical">
+                <h3>Categorical</h3>
+                {% for column in grouped_columns.categorical %}
+                <span class="column-label">{{ column }}</span>
                 {% endfor %}
-            </ul>
+            </div>
+            {% endif %}
+
+            {% if grouped_columns.integer or grouped_columns.float %}
+            <div class="column-group group-numerical">
+                <h3>Numerical</h3>
+                {% for column in grouped_columns.integer %}
+                <span class="column-label">{{ column }}</span>
+                {% endfor %}
+                {% for column in grouped_columns.float %}
+                <span class="column-label">{{ column }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if grouped_columns.boolean %}
+            <div class="column-group group-boolean">
+                <h3>Boolean</h3>
+                {% for column in grouped_columns.boolean %}
+                <span class="column-label">{{ column }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if grouped_columns.datetime %}
+            <div class="column-group group-datetime">
+                <h3>DateTime</h3>
+                {% for column in grouped_columns.datetime %}
+                <span class="column-label">{{ column }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if grouped_columns.text %}
+            <div class="column-group group-text">
+                <h3>Text</h3>
+                {% for column in grouped_columns.text %}
+                <span class="column-label">{{ column }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if grouped_columns.string %}
+            <div class="column-group group-string">
+                <h3>String</h3>
+                {% for column in grouped_columns.string %}
+                <span class="column-label">{{ column }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
         {% endif %}
     </div>
