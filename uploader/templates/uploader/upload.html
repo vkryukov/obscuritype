@@ -584,6 +584,79 @@
             color: #495057;
             font-size: 0.8rem;
         }
+
+        .feedback-form {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
+        .feedback-form textarea {
+            width: 100%;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .feedback-form textarea:focus {
+            outline: none;
+            border-color: #4dabf7;
+            box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.1);
+        }
+
+        .feedback-form button {
+            padding: 0.5rem 1rem;
+            background-color: #4dabf7;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .feedback-form button:hover {
+            background-color: #3b8fd6;
+        }
+
+        .feedback-form .feedback-success {
+            color: #2b8a3e;
+            margin-top: 0.5rem;
+            display: none;
+        }
+
+        .feedback-form .feedback-error {
+            color: #e03131;
+            margin-top: 0.5rem;
+            display: none;
+        }
+
+        .processing {
+            opacity: 0.5;
+            pointer-events: none;
+            position: relative;
+        }
+
+        .processing::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 24px;
+            height: 24px;
+            margin: -12px 0 0 -12px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
     </style>
 </head>
 
@@ -981,7 +1054,10 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
                     'Content-Type': 'application/x-www-form-urlencoded',
                     'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
                 },
-                body: 'query=' + encodeURIComponent(queryInput.value)
+                body: new URLSearchParams({
+                    'query': queryInput.value,
+                    'original_request': lastNaturalQuery
+                }).toString()
             })
                 .then(response => response.json())
                 .then(data => {
@@ -1027,6 +1103,22 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
 
                         tableContainer.innerHTML = '';
                         tableContainer.appendChild(table);
+
+                        // Add feedback form below the results
+                        const feedbackContainer = document.createElement('div');
+                        feedbackContainer.className = 'feedback-form';
+                        feedbackContainer.style.display = 'block'; // Show by default
+                        feedbackContainer.innerHTML = `
+                            <input type="hidden" id="originalRequest" value="${data.original_request || ''}">
+                            <input type="hidden" id="generatedQuery" value="${data.query || ''}">
+                            <input type="hidden" id="queryResult" value='${JSON.stringify(data.data)}'>
+                            <input type="hidden" id="rawDataExcerpt" value='${data.raw_data_excerpt || ''}'>
+                            <textarea id="feedbackPrompt" placeholder="If the results are not what you expected, please describe how they could be improved..."></textarea>
+                            <button onclick="submitFeedback()">Submit Feedback</button>
+                            <div id="feedbackSuccess" class="feedback-success">Feedback submitted successfully!</div>
+                            <div id="feedbackError" class="feedback-error"></div>
+                        `;
+                        resultsContainer.appendChild(feedbackContainer);
                     }
                     resultsContainer.classList.add('active');
                 })
@@ -1035,6 +1127,122 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
                 })
                 .finally(() => {
                     button.disabled = false;
+                });
+        }
+
+        function submitFeedback() {
+            const feedbackPrompt = document.getElementById('feedbackPrompt').value;
+            const originalRequest = document.getElementById('originalRequest').value;
+            const generatedQuery = document.getElementById('generatedQuery').value;
+            const queryResult = document.getElementById('queryResult').value;
+            const rawDataExcerpt = document.getElementById('rawDataExcerpt').value;
+
+            // Show loading state
+            const feedbackForm = document.querySelector('.feedback-form');
+            const submitButton = feedbackForm.querySelector('button');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Processing...';
+
+            // Add processing state to results and query
+            const sqlQueryInput = document.querySelector('.sql-query-input');
+            const resultsContainer = document.querySelector('.sql-results-container');
+            sqlQueryInput.classList.add('processing');
+            resultsContainer.classList.add('processing');
+
+            fetch('/submit-query-feedback/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    user_prompt: feedbackPrompt,
+                    original_request: originalRequest,
+                    generated_query: generatedQuery,
+                    query_result: queryResult,
+                    raw_data_excerpt: rawDataExcerpt
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update the SQL query input with the new query
+                        sqlQueryInput.value = data.new_query;
+
+                        // Update the results table
+                        const tableContainer = document.querySelector('.table-container');
+                        const table = document.createElement('table');
+                        table.style.width = 'auto';
+
+                        // Add headers
+                        const thead = document.createElement('thead');
+                        const headerRow = document.createElement('tr');
+                        data.columns.forEach(column => {
+                            const th = document.createElement('th');
+                            th.textContent = column;
+                            headerRow.appendChild(th);
+                        });
+                        thead.appendChild(headerRow);
+                        table.appendChild(thead);
+
+                        // Add data rows
+                        const tbody = document.createElement('tbody');
+                        data.data.forEach(row => {
+                            const tr = document.createElement('tr');
+                            data.columns.forEach(column => {
+                                const td = document.createElement('td');
+                                td.textContent = row[column] !== null ? row[column] : '';
+                                tr.appendChild(td);
+                            });
+                            tbody.appendChild(tr);
+                        });
+                        table.appendChild(tbody);
+
+                        tableContainer.innerHTML = '';
+                        tableContainer.appendChild(table);
+
+                        // Show success message
+                        document.getElementById('feedbackSuccess').style.display = 'block';
+                        document.getElementById('feedbackError').style.display = 'none';
+
+                        // Clear the form
+                        document.getElementById('feedbackPrompt').value = '';
+
+                        // Hide the feedback form after 2 seconds
+                        setTimeout(() => {
+                            feedbackForm.style.display = 'none';
+                            document.getElementById('feedbackSuccess').style.display = 'none';
+                        }, 2000);
+                    } else {
+                        throw new Error(data.error || 'Failed to process feedback');
+                    }
+                })
+                .catch(error => {
+                    // Show error in the results container
+                    const tableContainer = document.querySelector('.table-container');
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'sql-error';
+                    const safeError = error.message.replace(/'/g, "\\'").replace(/"/g, '\\"');
+                    errorDiv.innerHTML = `
+                    <span>${error.message}</span>
+                    <button class="fix-query-button" onclick="fixAndExecuteQuery(\`${safeError}\`)">
+                        Ask LLM to fix
+                    </button>
+                `;
+                    tableContainer.innerHTML = '';
+                    tableContainer.appendChild(errorDiv);
+
+                    // Also show error in the feedback form
+                    document.getElementById('feedbackError').textContent = error.message;
+                    document.getElementById('feedbackError').style.display = 'block';
+                    document.getElementById('feedbackSuccess').style.display = 'none';
+                })
+                .finally(() => {
+                    // Remove processing states
+                    sqlQueryInput.classList.remove('processing');
+                    resultsContainer.classList.remove('processing');
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Submit Feedback';
                 });
         }
     </script>

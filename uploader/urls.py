@@ -8,4 +8,5 @@ urlpatterns = [
     path('execute-sql/', views.execute_sql_query, name='execute_sql_query'),
     path('generate-sql/', views.generate_sql_query, name='generate_sql_query'),
     path('fix-sql/', views.fix_sql_query, name='fix_sql_query'),
+    path('submit-query-feedback/', views.submit_query_feedback, name='submit_query_feedback'),
 ] 

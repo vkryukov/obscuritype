@@ -8,6 +8,7 @@ import ast
 import os
 from openai import OpenAI
 from pandasql import sqldf
+from .models import QueryFeedback
 
 # Create your views here.
 
@@ -196,11 +197,15 @@ def execute_sql_query(request):
     
     try:
         query = request.POST.get('query')
+        original_request = request.POST.get('original_request', '')
         if not query:
             return JsonResponse({'error': 'No query provided'}, status=400)
         
         # Load data from session
         data = pd.DataFrame(json.loads(request.session['data_json']))
+        
+        # Get raw data excerpt (first 20 lines)
+        raw_data_excerpt = data.head(20).to_json(orient='records')
         
         # Execute the query
         result = sqldf(query, locals())
@@ -214,9 +219,128 @@ def execute_sql_query(request):
         return JsonResponse({
             'success': True,
             'data': result_json,
-            'columns': columns
+            'columns': columns,
+            'raw_data_excerpt': raw_data_excerpt,
+            'original_request': original_request,
+            'query': query
         })
     except Exception as e:
+        return JsonResponse({
+            'error': str(e)
+        }, status=400)
+
+def submit_query_feedback(request):
+    """Handle submission of query feedback."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST method is allowed'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        feedback = QueryFeedback(
+            original_request=data.get('original_request', ''),
+            generated_query=data.get('generated_query', ''),
+            query_result=data.get('query_result', ''),
+            raw_data_excerpt=data.get('raw_data_excerpt', ''),
+            user_prompt=data.get('user_prompt', '')
+        )
+        feedback.save()
+        
+        print("\n=== Processing Query Feedback ===")
+        print(f"Original Request: {data.get('original_request')}")
+        print(f"Generated Query: {data.get('generated_query')}")
+        print(f"User Feedback: {data.get('user_prompt')}")
+        print("\nRaw Data Excerpt:")
+        try:
+            raw_data = json.loads(data.get('raw_data_excerpt', '[]'))
+            for row in raw_data[:20]:  # Ensure we only print first 20 rows
+                print(json.dumps(row, indent=2))
+        except Exception as e:
+            print(f"Error parsing raw data: {str(e)}")
+        
+        # Get column information and data analysis
+        grouped_columns = request.session.get('grouped_columns', {})
+        data_analysis = request.session.get('data_analysis', '')
+        
+        # Create a description of available columns
+        columns_desc = []
+        for type_name, columns in grouped_columns.items():
+            if columns:
+                columns_desc.append(f"{type_name.title()} columns: {', '.join(columns)}")
+        
+        # Create prompt for LLM
+        prompt = f"""Given a dataset with the following structure:
+
+{chr(10).join(columns_desc)}
+
+Dataset description:
+{data_analysis}
+
+The original request was:
+"{data.get('original_request')}"
+
+The query generated was:
+{data.get('generated_query')}
+
+The query produced these results:
+{data.get('query_result')}
+
+The raw data excerpt (first 20 lines) looks like:
+{data.get('raw_data_excerpt')}
+
+The user provided this feedback about the results:
+"{data.get('user_prompt')}"
+
+Please generate a new SQL query that addresses the user's feedback.
+Return ONLY the SQL query, nothing else. The table name is 'data'.
+Make sure to handle NULL values appropriately and use proper SQLite syntax."""
+
+        print("\n=== Sending to LLM ===")
+        print(f"Prompt: {prompt}")
+        
+        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a SQL expert that generates and fixes SQL queries. Return only the SQL query, nothing else. Use SQLite syntax."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
+        )
+        
+        new_query = response.choices[0].message.content.strip()
+        print(f"\nGenerated new query: {new_query}")
+        
+        # Execute the new query
+        try:
+            # First, ensure we have a proper DataFrame
+            df = pd.DataFrame(json.loads(request.session['data_json']))
+            
+            # Execute the query using the DataFrame
+            result = sqldf(new_query, {'data': df})  # Pass DataFrame explicitly as 'data'
+            result_json = json.loads(result.to_json(orient='records', date_format='iso'))
+            columns = list(result.columns)
+            
+            print(f"Query executed successfully. Result columns: {columns}")
+            print("Results:", json.dumps(result_json[:5], indent=2))  # Print first 5 results
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Feedback processed successfully',
+                'new_query': new_query,
+                'data': result_json,
+                'columns': columns
+            })
+        except Exception as sql_error:
+            print(f"\nSQL Error: {str(sql_error)}")
+            print("Failed query:", new_query)
+            return JsonResponse({
+                'error': f"SQL Error: {str(sql_error)}"
+            }, status=400)
+            
+    except Exception as e:
+        print(f"\nError processing feedback: {str(e)}")
+        import traceback
+        print("Traceback:", traceback.format_exc())
         return JsonResponse({
             'error': str(e)
         }, status=400)
