@@ -209,3 +209,13 @@ def upload_csv(request):
     print("\nFinal context keys:", list(context.keys()))
     print("=== Ending upload_csv view ===\n")
     return render(request, 'uploader/upload.html', context)
+
+def clear_data(request):
+    """Clear all session data and redirect to the upload page."""
+    if request.method == 'POST':
+        # Clear all relevant session data
+        keys_to_clear = ['grouped_columns', 'csv_filename', 'data_json', 'csv_columns', 'csv_data']
+        for key in keys_to_clear:
+            if key in request.session:
+                del request.session[key]
+    return redirect('upload_csv')

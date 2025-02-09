@@ -79,6 +79,22 @@
             background-color: #dee2e6;
         }
 
+        .clear-button {
+            font-size: 0.7rem;
+            padding: 0.25rem 0.5rem;
+            background-color: #ffe3e3;
+            border: none;
+            border-radius: 4px;
+            color: #e03131;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: 0.5rem;
+        }
+
+        .clear-button:hover {
+            background-color: #ffc9c9;
+        }
+
         .upload-form {
             display: none;
         }
@@ -308,6 +324,24 @@
         .sidebar {
             z-index: 10;
         }
+
+        .placeholder-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #adb5bd;
+            font-size: 0.9rem;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .placeholder-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #dee2e6;
+        }
     </style>
 </head>
 
@@ -320,6 +354,12 @@
             <button type="button" class="replace-button" onclick="document.getElementById('csv_file').click()">
                 Replace
             </button>
+            <form method="post" action="{% url 'clear_data' %}" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="clear-button">
+                    Clear
+                </button>
+            </form>
         </div>
         {% endif %}
 
@@ -434,6 +474,12 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+        {% else %}
+        <div class="placeholder-content">
+            <div class="placeholder-icon">📊</div>
+            <p>No data loaded</p>
+            <p style="font-size: 0.8rem; color: #868e96;">Upload a CSV file to start exploring your data</p>
         </div>
         {% endif %}
     </div>
