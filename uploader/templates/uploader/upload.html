@@ -972,12 +972,19 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
                     'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
                 },
                 body: new URLSearchParams({
-                    'original_query': lastNaturalQuery,
+                    'original_query': lastNaturalQuery || '',
                     'sql_query': sqlQuery,
                     'error_message': errorMessage
                 }).toString()
             })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(data => {
+                            throw new Error(data.error || 'Failed to fix query');
+                        });
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     console.log('LLM fix response:', data);
                     if (data.error) {
@@ -992,7 +999,11 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
                     executeSqlQuery();
                 })
                 .catch(error => {
-                    resultsContainer.innerHTML = `<div class="sql-error">${error.message}</div>`;
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'sql-error';
+                    errorDiv.textContent = error.message;
+                    resultsContainer.innerHTML = '';
+                    resultsContainer.appendChild(errorDiv);
                     resultsContainer.classList.add('active');
                 })
                 .finally(() => {
@@ -1063,6 +1074,7 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
             const queryInput = document.querySelector('.sql-query-input');
             const resultsContainer = document.querySelector('.sql-results-container');
             const button = document.querySelector('.sql-query-button');
+            const loadingOverlay = showLoadingOverlay(resultsContainer, 'Executing query...');
 
             // Clear previous results
             resultsContainer.innerHTML = '<h3 class="section-header">Query Results</h3>';
@@ -1081,10 +1093,17 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
                 },
                 body: new URLSearchParams({
                     'query': queryInput.value,
-                    'original_request': lastNaturalQuery
+                    'original_request': lastNaturalQuery || ''
                 }).toString()
             })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(data => {
+                            throw new Error(data.error || 'Failed to execute query');
+                        });
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.error) {
                         const errorDiv = document.createElement('div');
@@ -1119,14 +1138,12 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
                             const tr = document.createElement('tr');
                             data.columns.forEach(column => {
                                 const td = document.createElement('td');
-                                td.textContent = row[column] !== null ? row[column] : '';
+                                td.textContent = row[column] !== null ? row[column] : 'NULL';
                                 tr.appendChild(td);
                             });
                             tbody.appendChild(tr);
                         });
                         table.appendChild(tbody);
-
-                        tableContainer.innerHTML = '';
                         tableContainer.appendChild(table);
 
                         // Add feedback form below the results
@@ -1148,10 +1165,22 @@ Example: SELECT * FROM data LIMIT 5"></textarea>
                     resultsContainer.classList.add('active');
                 })
                 .catch(error => {
-                    tableContainer.innerHTML = `<div class="sql-error">${error.message}</div>`;
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'sql-error';
+                    const safeError = error.message.replace(/'/g, "\\'").replace(/"/g, '\\"');
+                    errorDiv.innerHTML = `
+                        <span>${error.message}</span>
+                        <button class="fix-query-button" onclick="fixAndExecuteQuery(\`${safeError}\`)">
+                            Ask LLM to fix
+                        </button>
+                    `;
+                    tableContainer.innerHTML = '';
+                    tableContainer.appendChild(errorDiv);
+                    resultsContainer.classList.add('active');
                 })
                 .finally(() => {
                     button.disabled = false;
+                    loadingOverlay.remove();
                 });
         }
 

@@ -295,6 +295,7 @@ IMPORTANT SQL SYNTAX RULES:
 2. Column names containing spaces MUST be enclosed in double quotes, e.g., "Blood status", "Eye colour"
 3. String literals should use single quotes, e.g., 'Gryffindor'
 4. NULL values should be handled with IS NULL or IS NOT NULL
+5. For type casting, use CAST(value AS type), e.g., CAST(column AS FLOAT)
 
 Example of correct syntax:
 SELECT "House", "Blood status", COUNT("Id") as count
@@ -533,6 +534,7 @@ IMPORTANT SQL SYNTAX RULES:
 2. Column names containing spaces MUST be enclosed in double quotes, e.g., "Blood status", "Eye colour"
 3. String literals should use single quotes, e.g., 'Gryffindor'
 4. NULL values should be handled with IS NULL or IS NOT NULL
+5. For type casting, use CAST(value AS type), e.g., CAST(column AS FLOAT)
 
 Example of correct syntax:
 SELECT "House", "Blood status", COUNT("Id") as count
@@ -591,6 +593,7 @@ IMPORTANT SQL SYNTAX RULES:
 2. Column names containing spaces MUST be enclosed in double quotes, e.g., "Blood status", "Eye colour"
 3. String literals should use single quotes, e.g., 'Gryffindor'
 4. NULL values should be handled with IS NULL or IS NOT NULL
+5. For type casting, use CAST(value AS type), e.g., CAST(column AS FLOAT)
 
 Example of correct syntax:
 SELECT "House", "Blood status", COUNT("Id") as count
