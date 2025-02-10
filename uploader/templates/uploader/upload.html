@@ -43,6 +43,13 @@
             text-decoration: none;
         }
 
+        .tagline {
+            font-size: 0.9rem;
+            color: #888;
+            margin-left: 1rem;
+            font-weight: normal;
+        }
+
         .sidebar {
             width: 280px;
             background-color: var(--sidebar-dark);
@@ -677,6 +684,7 @@
 <body>
     <nav class="navbar">
         <a href="/" class="logo">ObscuriType</a>
+        <span class="tagline">What if everyone could access data without code or SQL?</span>
     </nav>
     <div class="sidebar">
         {% if filename %}
